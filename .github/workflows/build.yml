@@ -71,7 +71,7 @@ jobs:
             echo "Skipping superseded build"; exit 0
           fi
           tag="IPA"
-          notes="Reynard 0.22.1 / Gecko 160.0. Two IPA variants only; install one. Rootful IPA is recommended for jailbroken iOS 14.3. Experimental; device compatibility is not yet verified."
+          notes="Reynard 0.22.1 / Gecko 160.0. Two IPA variants only; install one. Rootful IPA is recommended for jailbroken iOS 14.3. Experimental; device compatibility is not yet verified. Build commit: $GITHUB_SHA."
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${assets[@]}" --clobber
           else
@@ -80,7 +80,6 @@ jobs:
           gh release view "$tag" --json assets --jq '.assets | map(select(.state == "uploaded") | .name) | sort' > uploaded.json
           jq -e '. == ["ChatGPT-Gecko-iOS14-Rootful.ipa","ChatGPT-Gecko-iOS14-TrollStore.ipa"]' uploaded.json
           gh release edit "$tag" --draft=false --notes "$notes"
-          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$tag" -f sha="$GITHUB_SHA" -F force=true >/dev/null
           gh release view "$tag" --json isDraft --jq '.isDraft == false' | grep -qx true
           # Remove superseded project releases and their tags.
           gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[].tag_name' | while IFS= read -r old; do

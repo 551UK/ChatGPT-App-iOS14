@@ -25,14 +25,13 @@ jobs:
           rootful=ChatGPT-Gecko-iOS14-Rootful.ipa
           trollstore=ChatGPT-Gecko-iOS14-TrollStore.ipa
           gh release view "$target" >/dev/null
-          if gh release view "$source" >/dev/null 2>&1; then
+          if gh release view "$source" >/dev/null 2>&1 && ! gh api "repos/$GH_REPO/releases/tags/$target" | jq -e '[.assets[] | select(.state == "uploaded") | {name,digest}] | sort_by(.name) == [{"name":"ChatGPT-Gecko-iOS14-Rootful.ipa","digest":"sha256:4f04b1aea6ae08cc4bbed920fdf0d4c53493ade58431be915f27c076fc1deead"},{"name":"ChatGPT-Gecko-iOS14-TrollStore.ipa","digest":"sha256:18a3e315432974090dc34bf5617f0d5fba7fdb832f20ddd8847a845ff4ac130c"}]' >/dev/null; then
             gh release download "$source" --pattern '*.ipa'
             printf '%s  %s\n' '4f04b1aea6ae08cc4bbed920fdf0d4c53493ade58431be915f27c076fc1deead' "$rootful" '18a3e315432974090dc34bf5617f0d5fba7fdb832f20ddd8847a845ff4ac130c' "$trollstore" | sha256sum -c -
             gh release upload "$target" "$rootful" "$trollstore" --clobber
             gh release edit "$target" --notes "ChatGPT iOS 14 v1.31 — Reynard 0.22.1 / Gecko 160.0. Install only one IPA. Device compatibility is still being tested."
           fi
           gh api "repos/$GH_REPO/releases/tags/$target" | jq -e '[.assets[] | select(.state == "uploaded") | {name,digest}] | sort_by(.name) == [{"name":"ChatGPT-Gecko-iOS14-Rootful.ipa","digest":"sha256:4f04b1aea6ae08cc4bbed920fdf0d4c53493ade58431be915f27c076fc1deead"},{"name":"ChatGPT-Gecko-iOS14-TrollStore.ipa","digest":"sha256:18a3e315432974090dc34bf5617f0d5fba7fdb832f20ddd8847a845ff4ac130c"}]'
-          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$target" -f sha=213f57c39c88323630b86e8064b3c14a96a4f367 -F force=true >/dev/null
           if gh release view "$source" >/dev/null 2>&1; then
             gh release delete "$source" --yes --cleanup-tag
           fi

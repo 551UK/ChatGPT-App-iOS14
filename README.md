@@ -10,3 +10,5 @@ Independent port of [551UK/ChatGPT-App-iOS16](https://github.com/551UK/ChatGPT-A
 The upstream archives are pinned to the SHA-256 hashes of the user's working iOS 14.3 uploads. The logged-out homepage uses native ChatGPT header styling; signed-in custom styling is retained. The old Gecko 158 binary patch is not applied to Gecko 160.
 
 [Releases](https://github.com/551UK/ChatGPT-App-iOS14/releases)
+
+Release policy: only the two current IPA variants are published together. No DEB or TIPA release assets. Older project releases are removed after both new IPAs have been verified and published. Source tags are retained.

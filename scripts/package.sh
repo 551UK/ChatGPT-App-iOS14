@@ -172,6 +172,10 @@ unzip -t "$OUTPUT" >/dev/null
 ls -lh "$OUTPUT"
 
 python3 "$ROOT/scripts/verify_ios14.py" "$NEWAPP"
+if [ "${IPA_ONLY:-0}" = 1 ]; then
+    echo "IPA-only build: skipping TIPA and DEB packaging"
+    exit 0
+fi
 if [ "$FLAVOR" = trollstore ]; then
     cp "$OUTPUT" "$DIST/ChatGPT-Gecko-iOS14-TrollStore.tipa"
     exit 0

@@ -15,3 +15,5 @@ The build enforces availability warnings for the native Objective-C target, chec
 GitHub Actions provides independent build jobs and uploads artifacts if successful. Start with the rootful DEB or primary IPA; if one fails, report the installation error and app crash log, and identify the variant.
 
 Each successful variant publishes independently to GitHub Releases. The native shell and cleanup code refuse to operate if the app HOME is not an isolated app data container; Settings also validates the container and supports the legacy LaunchServices containerURL selector. iOS 14 settings use a separate preference domain. The rootful DEB uses targeted uicache registration. These protections are intentional and need device validation.
+
+The public release workflow uses `IPA_ONLY=1` for both variants, skips Theos/DEB and duplicate TIPA packaging, and publishes one release containing exactly the two verified IPA files. Older iOS 14 project releases are deleted only after the replacement release is public and both assets are confirmed uploaded. Local DEB build source remains available but is not used by the public workflow.

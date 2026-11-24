@@ -2,6 +2,7 @@ name: Build and release iOS 14 IPAs
 on:
   push:
     branches: [main]
+    paths: ['src/**', 'web/**', 'scripts/**', 'prefs/**', 'tests/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -77,9 +78,16 @@ jobs:
           jq -e '. == ["ChatGPT-Gecko-iOS14-Rootful.ipa","ChatGPT-Gecko-iOS14-TrollStore.ipa"]' uploaded.json
           gh release edit "$tag" --draft=false
           gh release view "$tag" --json isDraft --jq '.isDraft == false' | grep -qx true
-          # Only remove superseded releases belonging to this app, not source tags.
+          # Remove superseded project releases and their tags.
           gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[].tag_name' | while IFS= read -r old; do
             if [[ "$old" == ios14-v* && "$old" != "$tag" ]]; then
-              gh release delete "$old" --yes
+              gh release delete "$old" --yes --cleanup-tag
             fi
           done
+          # Remove orphaned tags left by historical releases.
+          gh api --paginate "repos/$GH_REPO/git/matching-refs/tags/ios14-v" --jq '.[].ref' | while IFS= read -r ref; do
+            if [[ "$ref" == refs/tags/ios14-v* && "$ref" != "refs/tags/$tag" ]]; then
+              gh api --method DELETE "repos/$GH_REPO/git/refs/${ref#refs/}"
+            fi
+          done
+          gh api "repos/$GH_REPO/git/matching-refs/tags/ios14-v" --jq '.[].ref'

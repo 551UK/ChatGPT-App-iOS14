@@ -1,12 +1,9 @@
-name: Clean obsolete releases
+name: Clean obsolete releases and tags
 on:
   push:
     branches: [main]
     paths: ['.github/workflows/clean-old-releases.yml']
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Build iOS 14 packages"]
-    types: [completed]
 permissions:
   contents: write
 jobs:
@@ -16,19 +13,23 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - name: Remove old v1.30 releases and non-IPA assets
+      - name: Keep only latest complete IPA release and its tag
         shell: bash
         run: |
           set -euo pipefail
-          gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[].tag_name' | while IFS= read -r tag; do
-            if [[ "$tag" == ios14-v1.30-beta.* ]]; then
-              gh release delete "$tag" --yes
-            elif [[ "$tag" == ios14-v* ]]; then
-              gh release view "$tag" --json assets --jq '.assets[].name' | while IFS= read -r asset; do
-                if [[ "$asset" != *.ipa ]]; then
-                  gh release delete-asset "$tag" "$asset" --yes
-                fi
-              done
+          releases=$(gh api "repos/$GH_REPO/releases?per_page=100")
+          keep=$(jq -r '[.[] | select(.tag_name | startswith("ios14-v")) | select(.draft == false) | select(([.assets[] | select(.state == "uploaded") | .name] | sort) == ["ChatGPT-Gecko-iOS14-Rootful.ipa","ChatGPT-Gecko-iOS14-TrollStore.ipa"])] | sort_by(.published_at) | last | .tag_name // empty' <<< "$releases")
+          test -n "$keep"
+          echo "Keeping $keep"
+          jq -r '.[].tag_name' <<< "$releases" | while IFS= read -r old; do
+            if [[ "$old" == ios14-v* && "$old" != "$keep" ]]; then
+              gh release delete "$old" --yes --cleanup-tag
             fi
           done
-          gh api "repos/$GH_REPO/releases" --jq '.[] | {tag_name, assets: [.assets[].name]}'
+          gh api --paginate "repos/$GH_REPO/git/matching-refs/tags/ios14-v" --jq '.[].ref' | while IFS= read -r ref; do
+            if [[ "$ref" == refs/tags/ios14-v* && "$ref" != "refs/tags/$keep" ]]; then
+              gh api --method DELETE "repos/$GH_REPO/git/refs/${ref#refs/}"
+            fi
+          done
+          gh api "repos/$GH_REPO/git/matching-refs/tags/ios14-v" --jq '.[].ref' | tee remaining-tags.txt
+          test "$(cat remaining-tags.txt)" = "refs/tags/$keep"

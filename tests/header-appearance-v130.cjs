@@ -143,6 +143,30 @@ textarea{position:fixed;bottom:10px;left:20px}
  const settled=await page.evaluate(()=>window.__chromePasses);
  await page.waitForTimeout(300);
  assert.equal(await page.evaluate(()=>window.__chromePasses),settled,'theme refresh must settle');
+ // Logged-out home has a different header. It must use the site's own
+ // native SVG ink, transforms and surface colour, not the chat overrides.
+ await page.evaluate(()=>{
+   const h=document.querySelector("#page-header");
+   h.innerHTML='<button aria-label="Open sidebar"><span><svg viewBox="0 0 24 24"><rect width="18" height="18"/></svg></span></button><button class="share">Log in</button>';
+   document.title="ChatGPT";
+ });
+ await page.waitForTimeout(300);
+ const landing=await page.evaluate(()=>{
+   const h=document.querySelector("#page-header"),b=h.querySelector("button"),s=b.querySelector("svg");
+   return {transform:getComputedStyle(b).transform,filter:getComputedStyle(s).filter,bg:getComputedStyle(h).backgroundImage,opacity:getComputedStyle(b.querySelector("span")).opacity};
+ });
+ assert.equal(landing.transform,"none","signed-out header keeps native size");
+ assert.equal(landing.filter,"none","signed-out SVG keeps native ink");
+ assert.equal(landing.bg,"none","signed-out header keeps native background");
+ assert.equal(landing.opacity,"0.45","signed-out wrapper keeps native opacity");
+ await page.evaluate(html=>{
+   history.pushState(null,"","/c/return");
+   document.title="Return";
+   document.querySelector("#page-header").innerHTML=html;
+   document.body.style.background="white";
+ },controls());
+ await page.waitForTimeout(300);
+ await verify("signed-in header restored after leaving logged-out home");
  assert.deepEqual(errors,[]);
  console.log("PASS: Firefox header navigation, class/SVG replacement, delayed hydration, swapped icons, unlabelled fallback, sidebar exclusion, white strip and 5000 real message mutations");
  await browser.close();

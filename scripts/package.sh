@@ -2,11 +2,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
-VERSION="0.19.0"
+VERSION="0.22.1"
 FLAVOR="${FLAVOR:-jailbroken}"
 case "$FLAVOR" in
-    jailbroken) UPSTREAM="Reynard-Jailbroken.ipa"; SUFFIX="Rootful";;
-    trollstore) UPSTREAM="Reynard-TrollStore.tipa"; SUFFIX="TrollStore";;
+    jailbroken) UPSTREAM="Reynard-Jailbroken.ipa"; SUFFIX="Rootful"; UPSTREAM_SHA="6f5a454aa53922b7ebab3b110f25871fadaf39b36f75ab324734386d2cafefbd"; XUL_SHA="6a773c0ed5069511af637253bd9819ec905b62c8c351b60ef1c5bc9491279812";;
+    trollstore) UPSTREAM="Reynard-TrollStore.tipa"; SUFFIX="TrollStore"; UPSTREAM_SHA="c85c88c27371de0002721e137d3e590a31fe399a8e3058a871ceff0d82f7d91f"; XUL_SHA="0e9f0ce1ea2a90dcf8058fedcaf33580ee2e67fe9dbd71eed1dd7fd122552d8d";;
     *) echo "Unknown FLAVOR: $FLAVOR" >&2; exit 1;;
 esac
 WORK="$ROOT/build/work-$FLAVOR"
@@ -14,11 +14,11 @@ rm -rf "$WORK"
 DIST="$ROOT/dist"
 mkdir -p "$WORK" "$DIST"
 
-# Match the working standalone Reynard installation on Dopamine: use the
-# upstream jailbroken flavor rather than wrapping the TrollStore flavor in a DEB.
+# Use the exact two user-supplied official Reynard 0.22.1 archives.
 URL="https://github.com/minh-ton/reynard-browser/releases/download/${VERSION}/$UPSTREAM"
-curl -fL --retry 4 --retry-delay 2 "$URL" -o "$WORK/Reynard-Jailbroken.ipa"
-unzip -q "$WORK/Reynard-Jailbroken.ipa" -d "$WORK/unpacked"
+curl -fL --retry 4 --retry-delay 2 "$URL" -o "$WORK/$UPSTREAM"
+printf "%s  %s\n" "$UPSTREAM_SHA" "$WORK/$UPSTREAM" | shasum -a 256 -c -
+unzip -q "$WORK/$UPSTREAM" -d "$WORK/unpacked"
 APP="$(find "$WORK/unpacked/Payload" -maxdepth 1 -name '*.app' -type d | head -1)"
 [ -n "$APP" ] && [ -d "$APP" ] || { echo 'Missing Reynard app'; exit 1; }
 
@@ -94,7 +94,7 @@ scripts.append({
 manifest["content_scripts"] = scripts
 # Bump the built-in extension version so Gecko refreshes the installed copy
 # for users upgrading from the previous ChatGPT package.
-manifest["version"] = "1.0.130"
+manifest["version"] = "1.0.131"
 manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 print("Injected ChatGPT app presentation content script into", manifest_path)
 PY
@@ -139,13 +139,9 @@ sign_binary() {
         ldid -S "$exe"
     fi
 }
-# v1.30 includes the v1.28 active-stub GC repair on a clean upstream XUL.
-if [ "$FLAVOR" = jailbroken ]; then
-    python3 "$ROOT/scripts/patch_xul_active_stub.py" "$APP/Frameworks/XUL"
-    sign_binary "$APP/Frameworks/XUL" nothing
-else
-    echo "TrollStore XUL is a different build; leave it unmodified."
-fi
+# Preserve the exact user-tested 0.22.1 engine. The 0.19.0 GC patch
+# has version-specific offsets and is not valid for Gecko 160.
+printf "%s  %s\n" "$XUL_SHA" "$APP/Frameworks/XUL" | shasum -a 256 -c -
 sign_binary "$APP/Frameworks/ChatGPTShell.dylib" nothing
 for PLUG in "$APP"/PlugIns/*.appex; do
     [ -d "$PLUG" ] || continue
@@ -181,7 +177,7 @@ if [ "$FLAVOR" = trollstore ]; then
     exit 0
 fi
 
-# Build the Settings preference bundle on top of the preserved 0.19.0-22
+# Build the Settings preference bundle on top of the preserved 0.22.1
 # app shell/web baseline. The only added runtime source is the isolated,
 # login-safe data-maintenance module used by the real Settings controls.
 : "${THEOS:?THEOS must point to a Theos checkout}"
@@ -235,7 +231,7 @@ cp "$ROOT/prefs/Resources/icon.png" \
 cat > "$PKG/DEBIAN/control" <<'CONTROL'
 Package: com.551uk.chatgptgecko14
 Name: ChatGPT
-Version: 0.19.0-13014
+Version: 0.22.1-13114
 Architecture: iphoneos-arm
 Maintainer: 551UK
 Author: 551UK
@@ -258,7 +254,7 @@ if command -v uicache >/dev/null 2>&1; then uicache -u /Applications/ChatGPT.app
 exit 0
 POSTRM
 chmod 0755 "$PKG/DEBIAN/postinst" "$PKG/DEBIAN/postrm"
-DEB="$DIST/com.551uk.chatgptgecko14_0.19.0-13014_iphoneos-arm.deb"
+DEB="$DIST/com.551uk.chatgptgecko14_0.22.1-13114_iphoneos-arm.deb"
 dpkg-deb --root-owner-group -Zxz --build "$PKG" "$DEB"
 dpkg-deb --field "$DEB" Package Architecture
 python3 "$ROOT/scripts/verify_ios14.py" "$PKG/Applications/ChatGPT.app" "$PKG/Library/PreferenceBundles/ChatGPTPrefs.bundle"

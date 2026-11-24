@@ -90,12 +90,39 @@
     "@media (max-width: 799px) { #browser-sidebar-popover { width: 75vw !important; } }",
   ].join("\n");
 
-  function installStyle() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = styleText;
-    (document.head || document.documentElement).appendChild(style);
+  // The iOS 14 recording shows the signed-out landing page. Its native
+  // header is different from the signed-in chat header; do not force the
+  // chat-only SVG filters, transforms or background onto that layout.
+  const nativeLandingStyleText = [
+    "html[data-cg-ios16-preparing='1'] { visibility: hidden !important; }",
+    ".cg-ios16-hide { display: none !important; }"
+  ].join("\n");
+
+  function usesNativeLandingHeader() {
+    if (location.pathname !== "/" && location.pathname !== "") return false;
+    for (const control of document.querySelectorAll("button, a[href], [role='button']")) {
+      const label = normalizedText(control).toLowerCase();
+      const aria = (control.getAttribute("aria-label") || "").trim().toLowerCase();
+      if (!/^(log in|login|sign in)$/.test(label) && !/^(log in|login|sign in)$/.test(aria)) continue;
+      if (control.closest("[role='dialog'], [aria-modal='true'], aside, #browser-sidebar-popover, #stage-popover-sidebar, #stage-slideover-sidebar")) continue;
+      if (control.closest("header, [role='banner'], #page-header")) return true;
+      const rect = control.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0 && rect.top >= -10 && rect.top < 110 && rect.left >= innerWidth * .5) return true;
+    }
+    return false;
+  }
+
+  function installStyle(nativeLanding = false) {
+    let style = document.getElementById(STYLE_ID);
+    const desired = nativeLanding ? nativeLandingStyleText : styleText;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = STYLE_ID;
+      style.textContent = desired;
+      (document.head || document.documentElement).appendChild(style);
+    } else if (style.textContent !== desired) {
+      style.textContent = desired;
+    }
   }
 
   function normalizedText(element) {
@@ -512,6 +539,9 @@
         target = parent;
       }
 
+      // A footer may now wrap the composer itself on the signed-out page.
+      if (target.matches("textarea, [contenteditable=true], input") ||
+          target.querySelector("textarea, [contenteditable=true], input, button, [role=button]")) continue;
       target.dataset.cgIos16Hidden = "1";
       target.classList.add("cg-ios16-hide");
     }
@@ -1054,8 +1084,15 @@
     headerObserver.disconnect();
     headerParentObserver.disconnect();
     try {
-      installStyle();
+      const nativeLanding = usesNativeLandingHeader();
+      installStyle(nativeLanding);
       dismissAppPromotion();
+      if (nativeLanding) {
+        hideSuggestion();
+        hideDisclaimers();
+        if (document.body) revealCleanPage();
+        return;
+      }
       markSemanticHeaderControls();
       stabilizeTopActionBar();
       makeTopLeftHeaderIconsBlack();

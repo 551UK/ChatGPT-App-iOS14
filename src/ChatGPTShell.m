@@ -8,6 +8,7 @@
 #import <objc/message.h>
 #import <AVFoundation/AVFoundation.h>
 #import <QuartzCore/QuartzCore.h>
+#import "ChatGPTContainerSafety.h"
 
 static NSString *const CGBundleID = @"com.551uk.chatgptios14";
 static NSString *const CGHomeURL = @"https://chatgpt.com/";
@@ -942,6 +943,10 @@ __attribute__((constructor))
 static void CGStart(void) {
     @autoreleasepool {
         if (!CGIsOurApp()) return;
+        if (!CGHasPrivateAppContainer()) {
+            NSLog(@"[ChatGPTGecko] Missing private app container; refusing to seed databases or enable cleanup");
+            return;
+        }
         // Clear requested tabs/cache before creating the ChatGPT startup tab.
         // The previous independent constructors could run in the reverse order,
         // deleting the newly seeded tab and causing a blank first launch.

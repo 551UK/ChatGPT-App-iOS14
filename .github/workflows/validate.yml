@@ -18,6 +18,7 @@ jobs:
           node --check web/chatgpt-app-shell.js
           bash -n scripts/package.sh
           python3 -m py_compile scripts/*.py
+          python3 tests/ios14-port.py
       - run: |
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps firefox

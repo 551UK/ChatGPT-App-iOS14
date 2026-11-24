@@ -41,7 +41,7 @@ done
 mkdir -p "$APP/Frameworks"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 CLANG="$(xcrun --sdk iphoneos --find clang)"
-"$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=14.0 -Werror=unguarded-availability-new \
+"$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=14.0 -Werror=unguarded-availability -Werror=unguarded-availability-new \
     -fobjc-arc -fblocks -O2 -dynamiclib \
     -framework Foundation -framework UIKit -framework CoreGraphics -framework QuartzCore -framework AVFoundation -framework MediaPlayer -lsqlite3 \
     -Wno-deprecated-declarations \
@@ -247,14 +247,14 @@ cat > "$PKG/DEBIAN/postinst" <<'POSTINST'
 #!/bin/sh
 set -e
 export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-if command -v uicache >/dev/null 2>&1; then uicache -a || true; fi
+if command -v uicache >/dev/null 2>&1; then uicache -p /Applications/ChatGPT.app || uicache -a; fi
 exit 0
 POSTINST
 cat > "$PKG/DEBIAN/postrm" <<'POSTRM'
 #!/bin/sh
 set -e
 export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-if command -v uicache >/dev/null 2>&1; then uicache -a || true; fi
+if command -v uicache >/dev/null 2>&1; then uicache -u /Applications/ChatGPT.app || uicache -a; fi
 exit 0
 POSTRM
 chmod 0755 "$PKG/DEBIAN/postinst" "$PKG/DEBIAN/postrm"

@@ -5,7 +5,7 @@ for item in sys.argv[1:]:
     root = pathlib.Path(item)
     for bundle in [root, *root.glob("PlugIns/*.appex")]:
         p = plistlib.loads((bundle / "Info.plist").read_bytes())
-        assert tuple(map(int, str(p.get("MinimumOSVersion", "0")).split("."))) <= (14, 0), (bundle, p.get("MinimumOSVersion"))
+        assert tuple(map(int, str(p["MinimumOSVersion"]).split("."))) <= (14, 0), (bundle, p.get("MinimumOSVersion"))
         assert p["CFBundleIdentifier"].startswith("com.551uk.chatgptios14"), bundle
         binaries = [bundle / p["CFBundleExecutable"]]
         if bundle == root and (bundle / "Frameworks/ChatGPTShell.dylib").exists():

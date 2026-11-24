@@ -8,6 +8,8 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -41,38 +43,28 @@ jobs:
           name: ChatGPT-iOS14-${{ matrix.flavor }}
           path: dist/*
           if-no-files-found: error
-  release:
-    name: Publish iOS 14 IPA release
-    if: github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: ChatGPT-iOS14-jailbroken
-          path: release-assets
-      - uses: actions/download-artifact@v4
-        with:
-          name: ChatGPT-iOS14-trollstore
-          path: release-assets
-      - name: Verify archives and publish prerelease
+      - name: Publish verified IPA to Releases
+        if: github.ref == 'refs/heads/main'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FLAVOR: ${{ matrix.flavor }}
         run: |
           set -euo pipefail
-          cd release-assets
-          for ipa in ChatGPT-Gecko-iOS14-Rootful.ipa ChatGPT-Gecko-iOS14-TrollStore.ipa ChatGPT-Gecko-iOS14-TrollStore.tipa; do
-            test -s "$ipa"
-            unzip -tq "$ipa"
+          cd dist
+          case "$FLAVOR" in
+            jailbroken) assets=(ChatGPT-Gecko-iOS14-Rootful.ipa com.551uk.chatgptgecko14_0.19.0-13014_iphoneos-arm.deb);;
+            trollstore) assets=(ChatGPT-Gecko-iOS14-TrollStore.ipa ChatGPT-Gecko-iOS14-TrollStore.tipa);;
+            *) exit 1;;
+          esac
+          for asset in "${assets[@]}"; do
+            test -s "$asset"
+            case "$asset" in *.ipa|*.tipa) unzip -tq "$asset";; esac
           done
-          tag="ios14-v1.30-beta.${GITHUB_RUN_NUMBER}"
-          assets=(ChatGPT-Gecko-iOS14-Rootful.ipa ChatGPT-Gecko-iOS14-TrollStore.ipa ChatGPT-Gecko-iOS14-TrollStore.tipa)
+          tag="ios14-v1.30-beta.${GITHUB_RUN_NUMBER}-$FLAVOR"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${assets[@]}" --clobber
           else
-            gh release create "$tag" "${assets[@]}" --target "$GITHUB_SHA" --title "ChatGPT iOS 14 v1.30 beta (${GITHUB_RUN_NUMBER})" --prerelease --notes "Experimental iOS 14.0+ port. Start with Rootful.ipa on jailbroken iOS 14.3. TrollStore IPA/TIPA is an alternative; install only one variant. Build checks passed; physical device compatibility is not yet verified."
+            gh release create "$tag" "${assets[@]}" --target "$GITHUB_SHA" --title "ChatGPT iOS 14 v1.30 beta ($FLAVOR, build ${GITHUB_RUN_NUMBER})" --prerelease --notes "Experimental iOS 14.0+ port. Build and archive checks passed; real iOS 14.3 device testing remains necessary. Use the jailbroken variant on rootful iOS 14; TrollStore variant is an alternative. Install only one variant."
           fi

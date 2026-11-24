@@ -3,7 +3,7 @@
 
 extern void CGTerminateChatGPT(void);
 
-static CFStringRef const CGDataPrefsDomain = CFSTR("com.551uk.chatgpt.settings");
+static CFStringRef const CGDataPrefsDomain = CFSTR("com.551uk.chatgptios14.settings");
 
 // Must match the bitmask interpreted by ChatGPTDataMaintenance.m.
 typedef NS_OPTIONS(NSUInteger, CGClearCategory) {

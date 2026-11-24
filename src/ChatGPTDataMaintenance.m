@@ -1,8 +1,9 @@
 #import <Foundation/Foundation.h>
 #import <CoreFoundation/CoreFoundation.h>
 #import <sqlite3.h>
+#import "ChatGPTContainerSafety.h"
 
-static CFStringRef const CGPrefsDomain = CFSTR("com.551uk.chatgpt.settings");
+static CFStringRef const CGPrefsDomain = CFSTR("com.551uk.chatgptios14.settings");
 static NSString *const CGBundleID = @"com.551uk.chatgptios14";
 
 static BOOL CGIsChatGPTApp(void) {
@@ -63,7 +64,7 @@ static void CGWriteClearMask(NSUInteger mask) {
 }
 
 static BOOL CGSQLiteExec(NSString *path, NSArray<NSString *> *statements) {
-    if (!path.length || ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+    if (!CGPathIsWithinAppContainer(path) || ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
         return NO;
     }
 
@@ -111,7 +112,8 @@ static NSArray<NSString *> *CGFindFilesNamed(NSString *filename) {
 
     for (NSString *relative in enumerator) {
         if ([[relative lastPathComponent] isEqualToString:filename]) {
-            [matches addObject:[home stringByAppendingPathComponent:relative]];
+            NSString *candidate = [home stringByAppendingPathComponent:relative];
+            if (CGPathIsWithinAppContainer(candidate)) [matches addObject:candidate];
         }
     }
 
@@ -217,6 +219,7 @@ static void CGWriteGeckoHistoryPreference(BOOL noHistory) {
               NSCharacterSet.newlineCharacterSet]
              stringByAppendingString:@"\n"];
 
+        if (!CGPathIsWithinAppContainer(userJS)) continue;
         [updated writeToFile:userJS
                   atomically:YES
                     encoding:NSUTF8StringEncoding
@@ -227,7 +230,7 @@ static void CGWriteGeckoHistoryPreference(BOOL noHistory) {
 // Remove contents only; never delete the parent of a cache-only folder.
 // Do not recursively clear the app's Documents or Application Support root.
 static BOOL CGRemoveDirectoryContents(NSString *path) {
-    if (!path.length) return YES;
+    if (!CGPathIsWithinAppContainer(path)) return NO;
     NSFileManager *fm = NSFileManager.defaultManager;
     BOOL directory = NO;
     if (![fm fileExistsAtPath:path isDirectory:&directory]) return YES;
@@ -235,7 +238,9 @@ static BOOL CGRemoveDirectoryContents(NSString *path) {
     BOOL success = YES;
     for (NSString *entry in [fm contentsOfDirectoryAtPath:path error:nil]) {
         NSError *error = nil;
-        if (![fm removeItemAtPath:[path stringByAppendingPathComponent:entry] error:&error]) {
+        NSString *candidate = [path stringByAppendingPathComponent:entry];
+        if (!CGPathIsWithinAppContainer(candidate)) { success = NO; continue; }
+        if (![fm removeItemAtPath:candidate error:&error]) {
             success = NO;
             NSLog(@"[ChatGPTGecko] Could not clear %@: %@", entry, error);
         }
@@ -244,7 +249,8 @@ static BOOL CGRemoveDirectoryContents(NSString *path) {
 }
 
 static BOOL CGRemoveFileIfPresent(NSString *path) {
-    if (!path.length || ![[NSFileManager defaultManager] fileExistsAtPath:path]) return YES;
+    if (!CGPathIsWithinAppContainer(path)) return NO;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) return YES;
     NSError *error = nil;
     BOOL done = [[NSFileManager defaultManager] removeItemAtPath:path error:&error];
     if (!done) NSLog(@"[ChatGPTGecko] Could not remove %@: %@", path, error);
@@ -323,9 +329,9 @@ static BOOL CGClearOpenTabs(void) {
     BOOL success = CGSQLiteExecIfPresent(tabs, @[
         @"DELETE FROM recently_closed_tabs;",
         @"DELETE FROM tabs;",
-        @"UPDATE tab_state SET selected_regular_tab_id=NULL, "
+        (@"UPDATE tab_state SET selected_regular_tab_id=NULL, "
          "selected_private_tab_id=NULL, selected_tab_mode='regular', "
-         "last_tab_overview='regular' WHERE id=1;"
+         "last_tab_overview='regular' WHERE id=1;")
     ]);
 
     // The source creates an initial tab automatically when no tabs restore.
@@ -355,6 +361,10 @@ static void CGApplyHistoryPolicy(BOOL noHistory, BOOL clearExisting) {
 void CGRunPendingDataMaintenance(void) {
     @autoreleasepool {
         if (!CGIsChatGPTApp()) return;
+        if (!CGHasPrivateAppContainer()) {
+            NSLog(@"[ChatGPTGecko] Refusing data maintenance: app has no isolated iOS data container");
+            return;
+        }
 
         BOOL noHistory = CGReadBool(@"dontSaveLocalHistory", NO);
         NSUInteger mask = CGReadClearMask();

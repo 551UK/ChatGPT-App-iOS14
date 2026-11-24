@@ -8,7 +8,7 @@
 #import <sqlite3.h>
 #import <dlfcn.h>
 
-static CFStringRef const CGPrefsDomain = CFSTR("com.551uk.chatgpt.settings");
+static CFStringRef const CGPrefsDomain = CFSTR("com.551uk.chatgptios14.settings");
 
 static NSString *const CGChatGPTBundleID = @"com.551uk.chatgptios14";
 static NSString *const CGAppearanceURL = @"https://chatgpt.com/settings/appearance";
@@ -25,9 +25,22 @@ static NSURL *CGChatGPTDataContainerURL(void) {
     if (!proxy) return nil;
 
     SEL containerSelector = NSSelectorFromString(@"dataContainerURL");
-    if (![proxy respondsToSelector:containerSelector]) return nil;
-
-    return ((id (*)(id, SEL))objc_msgSend)(proxy, containerSelector);
+    NSURL *url = nil;
+    if ([proxy respondsToSelector:containerSelector])
+        url = ((id (*)(id, SEL))objc_msgSend)(proxy, containerSelector);
+    // Older LaunchServices versions expose containerURL instead.
+    if (!url) {
+        SEL legacy = NSSelectorFromString(@"containerURL");
+        if ([proxy respondsToSelector:legacy])
+            url = ((id (*)(id, SEL))objc_msgSend)(proxy, legacy);
+    }
+    if (![url isKindOfClass:NSURL.class] || !url.isFileURL) return nil;
+    NSString *resolved = url.path.stringByResolvingSymlinksInPath;
+    NSString *prefix = @"/private/var/mobile/Containers/Data/Application/";
+    NSString *other = @"/var/mobile/Containers/Data/Application/";
+    NSString *base = [resolved hasPrefix:prefix] ? prefix : ([resolved hasPrefix:other] ? other : nil);
+    if (!base || ![[NSUUID alloc] initWithUUIDString:[resolved substringFromIndex:base.length]]) return nil;
+    return [NSURL fileURLWithPath:resolved isDirectory:YES];
 }
 
 static BOOL CGBindText(sqlite3_stmt *stmt, int index, NSString *value) {
@@ -420,7 +433,7 @@ static void CGSetPreference(NSString *key, id value) {
             stack.translatesAutoresizingMaskIntoConstraints = NO;
 
             UIImageView *icon = [[UIImageView alloc] initWithImage:
-                [UIImage systemImageNamed:@"chevron.left.forwardslash.chevron.right"]];
+                ([UIImage systemImageNamed:@"chevron.left.forwardslash.chevron.right"] ?: [UIImage systemImageNamed:@"chevron.left.slash.chevron.right"] ?: [UIImage systemImageNamed:@"link"])];
             icon.tintColor = UIColor.systemGreenColor;
             [icon.widthAnchor constraintEqualToConstant:21.0].active = YES;
             [icon.heightAnchor constraintEqualToConstant:20.0].active = YES;

@@ -1,8 +1,5 @@
 name: Clean obsolete releases and tags
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/clean-old-releases.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -18,7 +15,7 @@ jobs:
         run: |
           set -euo pipefail
           releases=$(gh api "repos/$GH_REPO/releases?per_page=100")
-          keep=$(jq -r '[.[] | select(.tag_name | startswith("ios14-v")) | select(.draft == false) | select(([.assets[] | select(.state == "uploaded") | .name] | sort) == ["ChatGPT-Gecko-iOS14-Rootful.ipa","ChatGPT-Gecko-iOS14-TrollStore.ipa"])] | sort_by(.published_at) | last | .tag_name // empty' <<< "$releases")
+          keep=$(jq -r '[.[] | select(.tag_name | (. == "IPA" or startswith("ios14-v"))) | select(.draft == false) | select(([.assets[] | select(.state == "uploaded") | .name] | sort) == ["ChatGPT-Gecko-iOS14-Rootful.ipa","ChatGPT-Gecko-iOS14-TrollStore.ipa"])] | sort_by(.published_at) | last | .tag_name // empty' <<< "$releases")
           test -n "$keep"
           echo "Keeping $keep"
           jq -r '.[].tag_name' <<< "$releases" | while IFS= read -r old; do

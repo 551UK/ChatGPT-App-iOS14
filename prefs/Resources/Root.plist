@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>title</key>
+    <string>ChatGPT</string>
+    <key>items</key>
+    <array>
+        <dict>
+            <key>cell</key><string>PSGroupCell</string>
+            <key>label</key><string>BROWSING DATA</string>
+            <key>footerText</key><string>Select what to remove under Clear App Data. Cookies and saved login sessions stay untouched. Changes apply when ChatGPT next launches.</string>
+        </dict>
+        <dict>
+            <key>cell</key><string>PSSwitchCell</string>
+            <key>label</key><string>Don't Save Local Browsing History</string>
+            <key>key</key><string>dontSaveLocalHistory</string>
+            <key>get</key><string>readNoHistory:</string>
+            <key>set</key><string>setNoHistory:specifier:</string>
+            <key>default</key><false/>
+        </dict>
+        <dict>
+            <key>cell</key><string>PSButtonCell</string>
+            <key>id</key><string>clearAppData</string>
+            <key>label</key><string>Clear App Data</string>
+            <key>action</key><string>openClearAppData:</string>
+        </dict>
+
+        <dict>
+            <key>cell</key><string>PSGroupCell</string>
+            <key>label</key><string>CHATGPT APPEARANCE</string>
+            <key>footerText</key><string>Opens ChatGPT directly on the Appearance settings page. This page is available when you're signed in and your account has access to Appearance settings.</string>
+        </dict>
+        <dict>
+            <key>cell</key><string>PSButtonCell</string>
+            <key>id</key><string>appearanceLink</string>
+            <key>label</key><string>Open Appearance Settings</string>
+            <key>action</key><string>openAppearance:</string>
+        </dict>
+
+        <dict>
+            <key>cell</key><string>PSGroupCell</string>
+            <key>label</key><string>GOOD TO KNOW</string>
+        </dict>
+        <dict>
+            <key>cell</key><string>PSStaticTextCell</string>
+            <key>cellClass</key><string>CGPGuideCell</string>
+            <key>tipKind</key><string>refresh</string>
+            <key>height</key><real>94</real>
+        </dict>
+        <dict>
+            <key>cell</key><string>PSStaticTextCell</string>
+            <key>cellClass</key><string>CGPGuideCell</string>
+            <key>tipKind</key><string>back</string>
+            <key>height</key><real>94</real>
+        </dict>
+
+        <dict>
+            <key>cell</key><string>PSGroupCell</string>
+            <key>label</key><string>PROJECT</string>
+            <key>footerText</key><string>Made by 551UK</string>
+            <key>footerAlignment</key><integer>1</integer>
+        </dict>
+        <dict>
+            <key>cell</key><string>PSButtonCell</string>
+            <key>id</key><string>githubLink</string>
+            <key>label</key><string>View on GitHub</string>
+            <key>action</key><string>openRepository:</string>
+        </dict>
+    </array>
+</dict>
+</plist>

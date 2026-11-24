@@ -1,0 +1,43 @@
+name: Build iOS 14 packages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [jailbroken, trollstore]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build dependencies
+        run: |
+          brew install ldid dpkg
+          python3 -m pip install pillow lief
+      - name: Theos and private SDK for rootful preference bundle
+        if: matrix.flavor == 'jailbroken'
+        run: |
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
+          git clone --depth 1 https://github.com/theos/sdks.git "$RUNNER_TEMP/theos-sdks"
+          test -d "$RUNNER_TEMP/theos-sdks/iPhoneOS16.5.sdk"
+          ln -s "$RUNNER_TEMP/theos-sdks/iPhoneOS16.5.sdk" "$RUNNER_TEMP/theos/sdks/iPhoneOS16.5.sdk"
+          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
+      - name: Build and verify
+        env:
+          FLAVOR: ${{ matrix.flavor }}
+        run: bash scripts/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChatGPT-iOS14-${{ matrix.flavor }}
+          path: dist/*
+          if-no-files-found: error
